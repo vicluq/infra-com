@@ -35,25 +35,29 @@ class UDPServer:
             content = ''
             while not self.stop:
                 if not self.init:
+                    print('stand by...')
                     data, origin = self.sckt.recvfrom(self.MAX_BUFF)
-                    data = data.decode() # From bytes to str
 
-                    state, content = data.split('_') # content = img or text
+                    if data:
+                        print('Data received...')
+                        data = data.decode() # From bytes to str
+                        state, content = data.split(':') # content = img or text
 
-                    transmit = content and self.check_file(f'./samples/{content}')
-                    if not transmit:
-                        self.sckt.sendto(f"404:{content}", target_address)
-                        time.sleep(0.0001)
+                        transmit = content and self.check_file(f'./samples/{content}')
+                        if not transmit:
+                            print(f'{content} not found...')
+                            self.sckt.sendto(f"ERROR:not_found", target_address)
+                            time.sleep(0.0001)
 
-                    self.init = 1 if state == "READY" and transmit else 0 # Start transmission when client is ready
-                    self.stop = 1 if state == "STOP" else 0  # Stop socket
+                        self.init = 1 if state == "READY" and transmit else 0 # Start transmission when client is ready
+                        self.stop = 1 if state == "STOP" else 0  # Stop socket
 
                 else:
                     f_name = f'./samples/{content}'
                     file_buff = open(f_name, 'rb') # Reading binary file
                     total_pckts = self.get_packet_amout(f_name, self.MAX_BUFF)
                     
-                    self.sckt.sendto(f"INFO:{total_pckts}", target_address)
+                    self.sckt.sendto(f"START:{total_pckts}", target_address)
                     time.sleep(0.0001)
 
                     pckt = 1
