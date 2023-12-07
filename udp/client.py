@@ -1,9 +1,8 @@
 import socket as skt
-import math
 import time
-import os
 
 
+# ! CLASS BOILERPLATE
 class UDPClient:
     def __init__(self, sckt_family, sckt_type, sckt_binding, MAX_BUFF) -> None:
         self.sckt = skt.socket(sckt_family, sckt_type)
@@ -18,43 +17,43 @@ class UDPClient:
         self.stop = 0
 
 
-    def run(self, target_address):
+    def run(self, server_address):
+        msgs = ['READY:all_too_well.txt', 'STOP']
+
         try:
-            content = ''
-            while not self.stop:
-                if not self.init:
-                    data, origin = self.sckt.recvfrom(self.MAX_BUFF)
-                    data = data.decode() # From bytes to str
+            for msg in msgs:
+                f_name = msg.split(':')
+                self.sckt.sendto(msg, server_address)
+                time.sleep(0.002)
 
-                    state, content = data.split('_') # content = img or text
-                    print(f"INCOMING:{state}>{content or 'none'}")
+                data, origin = self.sckt.recvfrom(self.MAX_BUFF)
+                state, content = data.decode().split(':')
 
-                    transmit = content and self.check_file(f'./samples/{content}')
-                    if not transmit:
-                        print(f"404:{content}")
-                        self.sckt.sendto(f"404:{content}", target_address)
-                        time.sleep(0.0001)
-
-                    self.init = 1 if state == "READY" and transmit else 0 # Start transmission when client is ready
-                    self.stop = 1 if state == "STOP" else 0  # Stop socket
-
-                else:
-                    f_name = f'./samples/{content}'
-                    file_buff = open(f_name, 'rb') # Reading binary file
-                    total_pckts = self.get_packet_amout(f_name, self.MAX_BUFF)
+                if state == 'START':
+                    total_packets = content
+                    f_write = open(f'./received/{f_name[1]}', "wb")
                     
-                    self.sckt.sendto(f"INFO:{total_pckts}", target_address)
-                    time.sleep(0.0001)
+                    # Collecting packages
+                    packets = []
+                    for _ in range(total_packets):
+                        data, origin = self.sckt.recvfrom(self.MAX_BUFF)
+                        packets.append(data)
+                        time.sleep(0.0005)
+                    
+                    # Writing collected packages
+                    if len(packets) == total_packets:
+                        for p in packets:
+                            f_write.write(p)
 
-                    pckt = 1
-                    while file_buff:
-                        print(f"packet {pckt}/{total_pckts}")
-                        self.sckt.sendto(file_buff.read(self.MAX_BUFF), target_address)
-                        pckt += 1
-                        time.sleep(0.0001)
+                        f_write.close()
 
-                    print('Done')
-                    self.init = 0
+                    time.sleep(0.01)
+                
+                elif state == 'ERROR':
+                    print(content)
+                    time.sleep(0.01)
+                    continue
+
 
             self.close()
         except Exception as err:
@@ -63,3 +62,14 @@ class UDPClient:
 
     def close(self):
         self.sckt.close()
+
+
+if __name__ == '__main__':
+    # main()
+    MAX_BUFF_SIZE = 1024 # Bytes
+
+    addr_target = ('127.0.0.1', 8080) # Server address
+    addr_bind = ('127.0.0.1', 7070)
+
+    server = UDPClient(skt.AF_INET, skt.SOCK_DGRAM, addr_bind, MAX_BUFF_SIZE)
+    server.run(addr_target)
