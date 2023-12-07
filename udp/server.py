@@ -39,9 +39,11 @@ class UDPServer:
                     data = data.decode() # From bytes to str
 
                     state, content = data.split('_') # content = img or text
+                    print(f"INCOMING:{state}>{content or 'none'}")
 
                     transmit = content and self.check_file(f'./samples/{content}')
                     if not transmit:
+                        print(f"404:{content}")
                         self.sckt.sendto(f"404:{content}", target_address)
                         time.sleep(0.0001)
 
