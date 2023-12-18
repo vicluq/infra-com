@@ -1,6 +1,6 @@
 import socket as skt
-from PIL import Image, ImageFile
-from io import BytesIO
+from PIL import ImageFile
+from utils.buffer_ops import write_img, write_text
 import os
 
 
@@ -36,7 +36,7 @@ class UDPClient:
 
                 while not state:
                     try:
-                        data, origin = self.sckt.recvfrom(self.MAX_BUFF)
+                        data, _ = self.sckt.recvfrom(self.MAX_BUFF)
                         print(state, content)
                         state, content = data.decode().split(':')
                     except Exception as err:
@@ -61,30 +61,16 @@ class UDPClient:
                     
                     # Writing collected packages
                     if f_type == 'txt' and len(packets) == total_packets:
-                        f_write = open(save_path, "wb")
-                        
-                        for p in packets:
-                            f_write.write(p)
-                            
-                        print(f'{f_name[1]} was written.')
-                        
-                        f_write.close()
-
+                        write_text(save_path, packets)
                     elif (f_type == 'png' or f_type == 'jpg') and len(packets) == total_packets:
-                        img = ImageFile.Parser()
-                        print('Parsing image...')
-                        for p in packets:
-                            img.feed(p)
-                            
-                        im = img.close()
-                        im.save(save_path)
-                        
+                        write_img(save_path, packets)
 
-                        print(f'{f_name[1]} was written.')
-
-                    state = ''
+                    
+                    state = '' # Reset state for next round
+                
                 elif state == 'ERROR':
                     print(content)
+                    state = ''
                     continue
 
 
