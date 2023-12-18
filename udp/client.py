@@ -1,5 +1,7 @@
 import socket as skt
-import time
+from PIL import Image, ImageFile
+from io import BytesIO
+import os
 
 
 # ! CLASS BOILERPLATE
@@ -18,40 +20,71 @@ class UDPClient:
 
 
     def run(self, server_address):
-        msgs = ['READY:all_too_well.txt', 'STOP']
+        msgs = ['READY:all_too_well.txt', 'READY:intercin_copos.png', 'STOP:None']
+        state, content = None, None
 
         try:
             for msg in msgs:
                 f_name = msg.split(':')
-                self.sckt.sendto(msg, server_address)
-                time.sleep(0.002)
+                f_type = f_name[1].split('.')[-1]
 
-                data, origin = self.sckt.recvfrom(self.MAX_BUFF)
-                state, content = data.decode().split(':')
+                self.sckt.sendto(msg.encode(), server_address)
+
+                if 'STOP' in msg: 
+                    self.close() # Close client after sending all mesages.
+                    break
+
+                while not state:
+                    try:
+                        data, origin = self.sckt.recvfrom(self.MAX_BUFF)
+                        print(state, content)
+                        state, content = data.decode().split(':')
+                    except Exception as err:
+                        continue # recvfrom will timeout if it does not receive something
 
                 if state == 'START':
-                    total_packets = content
-                    f_write = open(f'./received/{f_name[1]}', "wb")
+                    total_packets = int(content)
+                    print(f'TOTAL PACKETS TO RECEIVE: {total_packets}')
+                    save_path = f'./received/{f_name[1]}'
                     
                     # Collecting packages
                     packets = []
-                    for _ in range(total_packets):
-                        data, origin = self.sckt.recvfrom(self.MAX_BUFF)
-                        packets.append(data)
-                        time.sleep(0.0005)
+                    while len(packets) < total_packets:
+                        try:
+                            print(f'Waiting for packet #{len(packets)}')
+                            data, origin = self.sckt.recvfrom(self.MAX_BUFF)
+                            packets.append(data)
+                            if len(packets) >= total_packets: break
+                        except:
+                            continue # Avoid timeout errors
+
                     
                     # Writing collected packages
-                    if len(packets) == total_packets:
+                    if f_type == 'txt' and len(packets) == total_packets:
+                        f_write = open(save_path, "wb")
+                        
                         for p in packets:
                             f_write.write(p)
-
+                            
+                        print(f'{f_name[1]} was written.')
+                        
                         f_write.close()
 
-                    time.sleep(0.01)
-                
+                    elif (f_type == 'png' or f_type == 'jpg') and len(packets) == total_packets:
+                        img = ImageFile.Parser()
+                        print('Parsing image...')
+                        for p in packets:
+                            img.feed(p)
+                            
+                        im = img.close()
+                        im.save(save_path)
+                        
+
+                        print(f'{f_name[1]} was written.')
+
+                    state = ''
                 elif state == 'ERROR':
                     print(content)
-                    time.sleep(0.01)
                     continue
 
 

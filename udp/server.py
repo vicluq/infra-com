@@ -6,8 +6,8 @@ import os
 # SocketKind ref: https://learn.microsoft.com/en-us/dotnet/api/system.net.sockets.sockettype?view=net-8.0
 
 # ! CLASS BOILERPLATE
-class UDPServer:
-    def __init__(self, sckt_family, sckt_type, sckt_binding, MAX_BUFF) -> None:
+class UDPServer():
+    def __init__(self, sckt_family, sckt_type, sckt_binding, MAX_BUFF):
         self.sckt = skt.socket(sckt_family, sckt_type)
         self.sckt.bind(sckt_binding) # Binding this address to the server
         self.sckt.settimeout(0.1)
@@ -31,48 +31,59 @@ class UDPServer:
 
 
     def run(self, target_address):
-        try:
             content = ''
             while not self.stop:
-                if not self.init:
-                    print('stand by...')
-                    data, origin = self.sckt.recvfrom(self.MAX_BUFF)
+                if not self.init_trans:
+                    print('Waiting for data...')
 
-                    if data:
-                        print('Data received...')
-                        data = data.decode() # From bytes to str
-                        state, content = data.split(':') # content = img or text
+                    try:
+                        data, origin = self.sckt.recvfrom(self.MAX_BUFF)
+                        print(origin, '>', data)
+                    except:
+                        os.system('cls')
+                        continue # recvfrom will timeout if it does not receive something
 
-                        transmit = content and self.check_file(f'./samples/{content}')
-                        if not transmit:
-                            print(f'{content} not found...')
-                            self.sckt.sendto(f"ERROR:not_found", target_address)
-                            time.sleep(0.0001)
 
-                        self.init = 1 if state == "READY" and transmit else 0 # Start transmission when client is ready
-                        self.stop = 1 if state == "STOP" else 0  # Stop socket
+                    print('Data received...')
+                    
+                    data = data.decode() # From bytes to str
+                    state, content = data.split(':') # content = img or text
+
+                    transmit = content and self.check_file(f'./samples/{content}')
+                    
+                    if not transmit:
+                        print(f'{content} not found...')
+                        self.sckt.sendto(f"ERROR:not_found".encode(), target_address)
+                        time.sleep(0.0001)
+
+                    self.init_trans = 1 if state == "READY" and transmit else 0 # Start transmission when client is ready
+                    self.stop = 1 if state == "STOP" else 0  # Stop socket
 
                 else:
                     f_name = f'./samples/{content}'
+                    total_pckts = self.get_packet_amout(f_name)
+                    print(f_name, total_pckts)
+
                     file_buff = open(f_name, 'rb') # Reading binary file
-                    total_pckts = self.get_packet_amout(f_name, self.MAX_BUFF)
-                    
-                    self.sckt.sendto(f"START:{total_pckts}", target_address)
+
+                    self.sckt.sendto(f"START:{total_pckts}".encode(), target_address)
                     time.sleep(0.0001)
 
                     pckt = 1
-                    while file_buff:
+                    bytes = 0
+                    while True:
+                        bytes = file_buff.read(self.MAX_BUFF)
+                        if bytes == b"": break
+
                         print(f"packet {pckt}/{total_pckts}")
-                        self.sckt.sendto(file_buff.read(self.MAX_BUFF), target_address)
+                        self.sckt.sendto(bytes, target_address)
                         pckt += 1
                         time.sleep(0.0001)
 
                     print(f'Done. {pckt} packets were sent.')
-                    self.init = 0
+                    self.init_trans = 0
 
             self.close()
-        except Exception as err:
-            print(err)
 
 
     def close(self):
