@@ -31,66 +31,53 @@ class UDPClient():
 
 
     def run(self, server_address):
-            content = ''
-            while not self.stop:
-                if not self.init_trans:
-                    print('[CLIENT] Waiting for data...')
+            msgs = ['START:all_too_well.txt', 'START:intercin_copos.png', 'STOP:None:0']
+            for msg in msgs:
+                if 'STOP' in msg: 
+                    self.close() # Close client after sending all mesages.
+                    break
 
+                f_name = msg.split(':')[1]
+                f_type = f_name.split('.')[-1]
+
+                f_path = f'./samples/{f_name}'
+                save_path = f'./received/received_back_{f_name}'
+                total_pckts = self.get_packet_amout(f_path)
+
+                # Communicate transmition init to server
+                self.sckt.sendto(f'{msg}:{total_pckts}'.encode(), server_address)
+                time.sleep(0.0001)
+
+
+                # Sending files
+                file_buff = open(f_path, 'rb') # Reading binary file
+
+                pckt = 1
+                bytes = 0
+                while True:
+                    bytes = file_buff.read(self.MAX_BUFF)
+                    if bytes == b"": break
+
+                    print(f"[CLIENT] sent packet {pckt}/{total_pckts}")
+                    self.sckt.sendto(bytes, server_address)
+                    pckt += 1
+                    time.sleep(0.0001)
+
+                print(f'[CLIENT] Done. {pckt} packets were sent.')
+
+
+                # Receiving packets back
+                state, file, pckts = '', '', ''
+                while not state:
                     try:
-                        data, origin = self.sckt.recvfrom(self.MAX_BUFF)
-                        print(origin, '>', data)
+                        data, _ = self.sckt.recvfrom(self.MAX_BUFF)
+                        state, file, pckts = data.decode().split(':')
                     except:
-                        os.system('cls')
-                        continue # recvfrom will timeout if it does not receive something
-
-
-                    print('[CLIENT] Data received...')
-                    
-                    data = data.decode() # From bytes to str
-                    state, content = data.split(':') # content = img or text
-
-                    transmit = content and self.check_file(f'./samples/{content}')
-                    
-                    if not transmit:
-                        print(f'[CLIENT] {content} not found...')
-                        self.sckt.sendto(f"ERROR:not_found".encode(), server_address)
-                        time.sleep(0.0001)
-
-                    self.init_trans = 1 if state == "READY" and transmit else 0 # Start transmission when client is ready
-                    self.stop = 1 if state == "STOP" else 0  # Stop socket
-
-                else:
-                    f_type = content.split('.')[-1]
-                    f_name = f'./samples/{content}'
-                    save_path = f'./received/received_back_{content}'
-
-                    total_pckts = self.get_packet_amout(f_name)
-
-
-                    # Sending files
-                    file_buff = open(f_name, 'rb') # Reading binary file
-
-                    self.sckt.sendto(f"START:{total_pckts}".encode(), server_address)
-                    time.sleep(0.0001)
-
-                    pckt = 1
-                    bytes = 0
-                    while True:
-                        bytes = file_buff.read(self.MAX_BUFF)
-                        if bytes == b"": break
-
-                        print(f"packet {pckt}/{total_pckts}")
-                        self.sckt.sendto(bytes, server_address)
-                        pckt += 1
-                        time.sleep(0.0001)
-
-                    print(f'[CLIENT] Done. {pckt} packets were sent.')
-                    self.init_trans = 0
-
-                    time.sleep(0.0001)
-
-                    # Receiving packets back
+                        continue
+                
+                if state == 'START':
                     print('[CLIENT] Receiving packets back...')
+                    total_pckts = int(pckts)
                     packets = []
                     while len(packets) < total_pckts:
                         try:

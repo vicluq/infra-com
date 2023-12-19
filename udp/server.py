@@ -1,6 +1,7 @@
 import socket as skt
 from utils.buffer_ops import write_img, write_text
 import os
+import math
 import time
 
 
@@ -18,34 +19,34 @@ class UDPServer:
         self.init_trans = 0
         self.stop = 0
 
+    def get_packet_amout(self, file):
+        fsize = os.stat(file).st_size # Size in bytes
+        total_packs = math.ceil(fsize/self.MAX_BUFF)
+        return total_packs
+
 
     def run(self, client_address):
-        msgs = ['READY:all_too_well.txt', 'READY:intercin_copos.png', 'STOP:None']
         state, content = None, None
 
         try:
-            for msg in msgs:
-                f_name = msg.split(':')
-                f_type = f_name[1].split('.')[-1]
-
-                self.sckt.sendto(msg.encode(), client_address)
-
-                if 'STOP' in msg: 
-                    self.close() # Close client after sending all mesages.
-                    break
-
+            while not self.stop:
+                print('[SERVER] Waiting for communication...')
                 while not state:
                     try:
                         data, _ = self.sckt.recvfrom(self.MAX_BUFF)
                         print(state, content)
-                        state, content = data.decode().split(':')
+                        state, file, pckts = data.decode().split(':')
                     except Exception as err:
                         continue # recvfrom will timeout if it does not receive something
+                
+                if state == 'STOP':
+                    print('[SERVER]: Shutting down...')
+                    self.close()
 
-                if state == 'START':
-                    total_packets = int(content)
-                    print(f'[SERVER] TOTAL PACKETS TO RECEIVE: {total_packets}')
-                    save_path = f'./received/{f_name[1]}'
+                elif state == 'START':
+                    f_type = file.split('.')[-1]
+                    total_packets = int(pckts)
+                    save_path = f'./received/{file}'
                     
                     # Collecting packages
                     packets = []
@@ -67,10 +68,15 @@ class UDPServer:
                     
 
                     # Sending back file
-                    file_buff = open(f_name, 'rb') # Reading binary file
+                    file_buff = open(save_path, 'rb') # Reading binary file
 
                     pckt = 1
                     bytes = 0
+                    total_packets = self.get_packet_amout(save_path)
+
+                    self.sckt.sendto(f"START:{file}:{total_packets}".encode(), client_address)
+                    time.sleep(0.0001)
+
                     while True:
                         bytes = file_buff.read(self.MAX_BUFF)
                         if bytes == b"": break

@@ -1,5 +1,6 @@
 from PIL import ImageFile
 
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 def write_text(save_path: str, packets: list):
     f_write = open(save_path, "wb")
