@@ -1,13 +1,12 @@
 import socket as skt
-import math
-import time
+from utils.buffer_ops import write_img, write_text
 import os
+import time
 
-# SocketKind ref: https://learn.microsoft.com/en-us/dotnet/api/system.net.sockets.sockettype?view=net-8.0
 
 # ! CLASS BOILERPLATE
-class UDPServer():
-    def __init__(self, sckt_family, sckt_type, sckt_binding, MAX_BUFF):
+class UDPServer:
+    def __init__(self, sckt_family, sckt_type, sckt_binding, MAX_BUFF) -> None:
         self.sckt = skt.socket(sckt_family, sckt_type)
         self.sckt.bind(sckt_binding) # Binding this address to the server
         self.sckt.settimeout(0.1)
@@ -19,55 +18,58 @@ class UDPServer():
         self.init_trans = 0
         self.stop = 0
 
-    
-    def get_packet_amout(self, file):
-        fsize = os.stat(file).st_size # Size in bytes
-        total_packs = math.ceil(fsize/self.MAX_BUFF)
-        return total_packs
-    
 
-    def check_file(self, f_name):
-        return os.path.exists(f_name)
+    def run(self, client_address):
+        msgs = ['READY:all_too_well.txt', 'READY:intercin_copos.png', 'STOP:None']
+        state, content = None, None
 
+        try:
+            for msg in msgs:
+                f_name = msg.split(':')
+                f_type = f_name[1].split('.')[-1]
 
-    def run(self, target_address):
-            content = ''
-            while not self.stop:
-                if not self.init_trans:
-                    print('Waiting for data...')
+                self.sckt.sendto(msg.encode(), client_address)
 
+                if 'STOP' in msg: 
+                    self.close() # Close client after sending all mesages.
+                    break
+
+                while not state:
                     try:
-                        data, origin = self.sckt.recvfrom(self.MAX_BUFF)
-                        print(origin, '>', data)
-                    except:
-                        os.system('cls')
+                        data, _ = self.sckt.recvfrom(self.MAX_BUFF)
+                        print(state, content)
+                        state, content = data.decode().split(':')
+                    except Exception as err:
                         continue # recvfrom will timeout if it does not receive something
 
-
-                    print('Data received...')
+                if state == 'START':
+                    total_packets = int(content)
+                    print(f'[SERVER] TOTAL PACKETS TO RECEIVE: {total_packets}')
+                    save_path = f'./received/{f_name[1]}'
                     
-                    data = data.decode() # From bytes to str
-                    state, content = data.split(':') # content = img or text
+                    # Collecting packages
+                    packets = []
+                    while len(packets) < total_packets:
+                        try:
+                            print(f'[SERVER] Waiting for packet #{len(packets)}')
+                            data, origin = self.sckt.recvfrom(self.MAX_BUFF)
+                            packets.append(data)
+                            if len(packets) >= total_packets: break
+                        except:
+                            continue # Avoid timeout errors
 
-                    transmit = content and self.check_file(f'./samples/{content}')
                     
-                    if not transmit:
-                        print(f'{content} not found...')
-                        self.sckt.sendto(f"ERROR:not_found".encode(), target_address)
-                        time.sleep(0.0001)
+                    # Writing collected packages
+                    if f_type == 'txt' and len(packets) == total_packets:
+                        write_text(save_path, packets)
+                    elif (f_type == 'png' or f_type == 'jpg') and len(packets) == total_packets:
+                        write_img(save_path, packets)
 
-                    self.init_trans = 1 if state == "READY" and transmit else 0 # Start transmission when client is ready
-                    self.stop = 1 if state == "STOP" else 0  # Stop socket
+                    
+                    state = '' # Reset state for next round
 
-                else:
-                    f_name = f'./samples/{content}'
-                    total_pckts = self.get_packet_amout(f_name)
-                    print(f_name, total_pckts)
-
+                    # Sending back file
                     file_buff = open(f_name, 'rb') # Reading binary file
-
-                    self.sckt.sendto(f"START:{total_pckts}".encode(), target_address)
-                    time.sleep(0.0001)
 
                     pckt = 1
                     bytes = 0
@@ -75,15 +77,23 @@ class UDPServer():
                         bytes = file_buff.read(self.MAX_BUFF)
                         if bytes == b"": break
 
-                        print(f"packet {pckt}/{total_pckts}")
-                        self.sckt.sendto(bytes, target_address)
+                        print(f"[SERVER] packet {pckt}/{total_packets}")
+                        self.sckt.sendto(bytes, client_address)
                         pckt += 1
                         time.sleep(0.0001)
 
-                    print(f'Done. {pckt} packets were sent.')
-                    self.init_trans = 0
+                    print(f'[SERVER] Done. {pckt} packets were sent.')
+                
+                
+                elif state == 'ERROR':
+                    print(content)
+                    state = ''
+                    continue
+
 
             self.close()
+        except Exception as err:
+            print(err)
 
 
     def close(self):
@@ -94,8 +104,8 @@ if __name__ == '__main__':
     # main()
     MAX_BUFF_SIZE = 1024 # Bytes
 
-    addr_bind = ('127.0.0.1', 8080)
-    addr_target = ('127.0.0.1', 7070)
+    addr_target = ('127.0.0.1', 8080) # Server address
+    addr_bind = ('127.0.0.1', 7070)
 
     server = UDPServer(skt.AF_INET, skt.SOCK_DGRAM, addr_bind, MAX_BUFF_SIZE)
     server.run(addr_target)
