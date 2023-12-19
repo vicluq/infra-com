@@ -64,9 +64,7 @@ class UDPServer:
                         write_text(save_path, packets)
                     elif (f_type == 'png' or f_type == 'jpg') and len(packets) == total_packets:
                         write_img(save_path, packets)
-
                     
-                    state = '' # Reset state for next round
 
                     # Sending back file
                     file_buff = open(f_name, 'rb') # Reading binary file
@@ -83,7 +81,7 @@ class UDPServer:
                         time.sleep(0.0001)
 
                     print(f'[SERVER] Done. {pckt} packets were sent.')
-                
+                    state = '' # Reset state for next round
                 
                 elif state == 'ERROR':
                     print(content)
