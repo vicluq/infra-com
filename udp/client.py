@@ -31,7 +31,7 @@ class UDPClient():
 
 
     def run(self, server_address):
-            msgs = ['START:all_too_well.txt', 'START:test.pdf', 'START:intercin_copos.png', 'STOP:None:0']
+            msgs = ['START:all_too_well.txt', 'START:intercin_copos.png', 'STOP:None:0']
             for msg in msgs:
                 if 'STOP' in msg:
                     self.sckt.sendto(msg.encode(), server_address)
