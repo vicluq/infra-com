@@ -33,7 +33,8 @@ class UDPClient():
     def run(self, server_address):
             msgs = ['START:all_too_well.txt', 'START:intercin_copos.png', 'STOP:None:0']
             for msg in msgs:
-                if 'STOP' in msg: 
+                if 'STOP' in msg:
+                    self.sckt.sendto(msg.encode(), server_address)
                     self.close() # Close client after sending all mesages.
                     break
 
@@ -47,6 +48,7 @@ class UDPClient():
                 # Communicate transmition init to server
                 self.sckt.sendto(f'{msg}:{total_pckts}'.encode(), server_address)
                 time.sleep(0.0001)
+
 
 
                 # Sending files
