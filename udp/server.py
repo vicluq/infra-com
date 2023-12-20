@@ -30,7 +30,9 @@ class UDPServer:
 
         try:
             while not self.stop:
+                print('===================================')
                 print('[SERVER] Waiting for communication...')
+                
                 while not state:
                     try:
                         data, _ = self.sckt.recvfrom(self.MAX_BUFF)
@@ -38,12 +40,9 @@ class UDPServer:
                         state, file, pckts = data.decode().split(':')
                     except Exception as err:
                         continue # recvfrom will timeout if it does not receive something
-                
-                if state == 'STOP':
-                    print('[SERVER]: Shutting down...')
-                    self.close()
+            
 
-                elif state == 'START':
+                if state == 'START':
                     f_type = file.split('.')[-1]
                     total_packets = int(pckts)
                     save_path = f'./received/{file}'
@@ -87,10 +86,15 @@ class UDPServer:
                         time.sleep(0.0001)
 
                     print(f'[SERVER] Done. {pckt} packets were sent.')
+                    
                     state = '' # Reset state for next round
                 
                 elif state == 'ERROR':
                     print(content)
+                    state = ''
+                    continue
+
+                elif state == 'STOP':
                     state = ''
                     continue
 
