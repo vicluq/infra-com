@@ -60,7 +60,7 @@ class UDPServer:
 
                     
                     # Writing collected packages
-                    if f_type == 'txt' and len(packets) == total_packets:
+                    if (f_type == 'txt' or f_type == 'pdf') and len(packets) == total_packets:
                         write_text(save_path, packets)
                     elif (f_type == 'png' or f_type == 'jpg') and len(packets) == total_packets:
                         write_img(save_path, packets)

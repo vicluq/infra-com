@@ -31,7 +31,7 @@ class UDPClient():
 
 
     def run(self, server_address):
-            msgs = ['START:all_too_well.txt', 'START:intercin_copos.png', 'STOP:None:0']
+            msgs = ['START:all_too_well.txt', 'START:test.pdf', 'START:intercin_copos.png', 'STOP:None:0']
             for msg in msgs:
                 if 'STOP' in msg:
                     self.sckt.sendto(msg.encode(), server_address)
@@ -48,7 +48,6 @@ class UDPClient():
                 # Communicate transmition init to server
                 self.sckt.sendto(f'{msg}:{total_pckts}'.encode(), server_address)
                 time.sleep(0.0001)
-
 
 
                 # Sending files
@@ -92,7 +91,7 @@ class UDPClient():
 
                     
                     # Writing collected packages
-                    if f_type == 'txt' and len(packets) == total_pckts:
+                    if (f_type == 'txt' or f_type == 'pdf') and len(packets) == total_pckts:
                         write_text(save_path, packets)
                     elif (f_type == 'png' or f_type == 'jpg') and len(packets) == total_pckts:
                         write_img(save_path, packets)
