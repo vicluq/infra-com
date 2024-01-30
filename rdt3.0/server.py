@@ -6,7 +6,8 @@ import random
 import os
 
 
-logging.basicConfig()
+logging.basicConfig(level=logging.NOTSET)
+logging.root.setLevel(logging.NOTSET)
 logger = logging.getLogger('SERVER')
 
 
@@ -14,14 +15,13 @@ class RDTServer:
       def __init__(self, sckt_family, sckt_type, sckt_binding, sckt_timeout, MAX_BUFF) -> None:
             self.sckt = skt.socket(sckt_family, sckt_type)
             self.sckt.bind(sckt_binding) # Binding this address to the server
-            self.sckt.settimeout(sckt_timeout)
             self.LOSS_PROB = 0.05 # Packet loss prob
-
+            self.TIMEOUT = sckt_timeout
+            
             if self.sckt is None:
                   raise "Socket not available."
 
             self.MAX_BUFF: int = MAX_BUFF
-            self.clients: dict = {}
             self.active_conn = 0
 
             self.ACK_OK = 'ok'
@@ -32,17 +32,22 @@ class RDTServer:
                   self.sckt.listen()
                   while True:
                         client, addr = self.sckt.accept() # Await for connection
-                        self.clients[addr] = client
+                        client.settimeout(self.TIMEOUT)
+                        print(client)
                         thread = threading.Thread(target=self.serve_client, args=[client, addr])
                         self.active_conn += 1
                         thread.start()
-                        logger.info(f'New connection > {client}@{addr} | Total = {self.active_conn}')
+                        
+                        logger.info(f'New connection @ {addr} | Total Conn = {self.active_conn}')
 
             except Exception as err:
-                  logger.warn(err)
+                  logger.error(err)
+            except KeyboardInterrupt:
+                  exit(1)
 
       
       def wait_for_pckt_req(self, client: skt.socket) -> Packet:
+            client.settimeout(self.TIMEOUT)
             max_timeouts = 2
             
             while max_timeouts:
@@ -50,7 +55,7 @@ class RDTServer:
                         pckt_req = client.recv(self.MAX_BUFF)
                         if pckt_req:
                               p = Packet(received=pckt_req)
-                              logger.info('Packet Received.')
+                              logger.info(f'Client Packet Received.')
                               return p
                   except skt.timeout:
                         max_timeouts -= 1
@@ -60,11 +65,14 @@ class RDTServer:
 
       def send_data(self, client: skt.socket, pckt: Packet):
             max_timeouts = 2
+            max_retry = 3
+
             while max_timeouts:
                   if random.random() > self.LOSS_PROB:
                         client.send(pckt.__dump__())
-                  else:
-                        logger.warn(f'Packet was lost {pckt.packet.get('seq_num')}')
+                  elif max_retry:
+                        logger.warning(f'Packet was lost {pckt.packet.get('seq_num')}')
+                        max_retry -= 1
 
                   try:
                         resp = client.recv(self.MAX_BUFF) # Receive the ack 'ok' or 'not ok' pckt
@@ -75,15 +83,17 @@ class RDTServer:
 
                         rcv_packt = Packet(received=resp)
                         if rcv_packt.packet.get('ack') == self.ACK_OK:
+                              logger.info(f'Packet #{pckt.packet.get('seq_num') + 1} ack = "ok"')
                               return 1 # Success
-                        else:
-                              logger.warn('Not acknowledged, attempting to resend packet.') # Not ok
+                        elif max_retry:
+                              max_retry -= 1
+                              logger.warning(f'Packet #{pckt.packet.get('seq_num') + 1} not acknowledged, attempting to resend packet.') # Not ok
                         
                   except skt.timeout:
-                        logger.warn('Client timeout.')
+                        logger.warning(f'Client timeout.')
                         max_timeouts -= 1
 
-            return 0
+            return 0 # Not successfull (timeout or ack not ok)
       
 
       def is_file(self, file):
@@ -95,35 +105,45 @@ class RDTServer:
 
             if not req_packet: return 3 # Client timed out
 
-            if self.is_file(req_packet.packet.get('file')):
-                  f_buff = open(req_packet.packet.get('file'))
+            if self.is_file(req_packet.packet.get('file_name')):
                   pckt = Packet(status='file_found')
+                  client.send(pckt.__dump__())
+
+                  f_buff = open(req_packet.packet.get('file_name'), mode='rb')
+                  
+                  logger.info(f'Ready to send file...')
                   seq_count = 0
                   data_buff = f_buff.read(self.MAX_BUFF)
-                  while True:
+
+                  while data_buff:
                         pkt = Packet(data_buff, seq_num=seq_count)
                         
                         if not self.send_data(client, pkt):
-                              logger.warn('Errors on sending packet, client disconnected.')
+                              logger.warning('Errors on sending packet, client disconnected.')
                               client.close()
-                              self.clients.pop(addr)
                               break
-                        
-                        logger.info(f'Packet {seq_count + 1} was sent.')
                         seq_count += 1
                         data_buff = f_buff.read(self.MAX_BUFF)
+                  
+                  logger.info(f'All data was sent, disconnecting client.')
+                  f_buff.close()
             else:
+                  logger.info(f'File not found, disconnecting client.')
                   pckt = Packet(status='not_found')
                   client.send(pckt.__dump__())
 
             client.close()
-            self.clients.pop(addr)
-            self.active_conn -= 1
 
 
       def stop(self):
-            for k in self.clients.keys():
-                  self.clients[k].close()
-            self.clients = {}
             self.active_conn = 0
             self.sckt.close()
+
+
+if __name__ == '__main__':
+      MAX_BUFF_SIZE = 1024
+      server_addr = ('localhost', 8000)
+      SERVER_TIMOUT = 2
+      server = RDTServer(skt.AF_INET, skt.SOCK_STREAM, server_addr, SERVER_TIMOUT, MAX_BUFF_SIZE)
+
+      server.listen()
