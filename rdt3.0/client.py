@@ -83,10 +83,10 @@ class RDTClient():
                         pkt = Packet(received=resp) 
                         
                         if random.random() <= self.CORRUPT_PROB:
-                              logger.warning(f'Packet {pkt.packet.get('seq_num') + 1} was corrupted...')
+                              logger.warning(f'Packet {pkt.packet.get("seq_num") + 1} was corrupted...')
                               self._ack(pkt, self.ACK_NOT_OK)
                         else:
-                              logger.info(f'Packet #{pkt.packet.get('seq_num') + 1} received and is ok.')
+                              logger.info(f'Packet #{pkt.packet.get("seq_num") + 1} received and is ok.')
                               f_buff.write(pkt.packet.get('data'))
                               self._ack(pkt, self.ACK_OK)
 

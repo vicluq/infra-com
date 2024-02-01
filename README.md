@@ -9,4 +9,3 @@
 Data received will be saved in the `received` folder and sample data will be inside the `samples` folder. Remember to change the 'msg' array in 'client.py' (line 34) with the content you want to use, following the pattern:
 
 ['START: file', ... , 'STOP:None:0']
-

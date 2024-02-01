@@ -34,7 +34,7 @@ class RDTServer:
                         client, addr = self.sckt.accept() # Await for connection
                         client.settimeout(self.TIMEOUT)
                         print(client)
-                        thread = threading.Thread(target=self.serve_client, args=[client, addr])
+                        thread = threading.Thread(target=self.server_client, args=[client, addr])
                         self.active_conn += 1
                         thread.start()
                         
@@ -71,7 +71,7 @@ class RDTServer:
                   if random.random() > self.LOSS_PROB:
                         client.send(pckt.__dump__())
                   elif max_retry:
-                        logger.warning(f'Packet was lost {pckt.packet.get('seq_num') + 1}')
+                        logger.warning(f'Packet was lost {pckt.packet.get("seq_num") + 1}')
                         max_retry -= 1
 
                   try:
@@ -83,11 +83,11 @@ class RDTServer:
 
                         rcv_packt = Packet(received=resp)
                         if rcv_packt.packet.get('ack') == self.ACK_OK:
-                              logger.info(f'Packet #{pckt.packet.get('seq_num') + 1} ack = "ok"')
+                              logger.info(f'Packet #{pckt.packet.get("seq_num") + 1} ack = "ok"')
                               return 1 # Success
                         elif max_retry:
                               max_retry -= 1
-                              logger.warning(f'Packet #{pckt.packet.get('seq_num') + 1} not acknowledged, attempting to resend packet.') # Not ok
+                              logger.warning(f'Packet #{pckt.packet.get("seq_num") + 1} not acknowledged, attempting to resend packet.') # Not ok
                         
                   except skt.timeout:
                         logger.warning(f'Client timeout.')
@@ -100,7 +100,7 @@ class RDTServer:
             return os.path.exists(file)
       
 
-      def serve_client(self, client: skt.socket, addr):
+      def server_client(self, client: skt.socket, addr):
             req_packet = self.wait_for_pckt_req(client)
 
             if not req_packet: return 3 # Client timed out
