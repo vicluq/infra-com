@@ -71,7 +71,7 @@ class RDTServer:
                   if random.random() > self.LOSS_PROB:
                         client.send(pckt.__dump__())
                   elif max_retry:
-                        logger.warning(f'Packet was lost {pckt.packet.get('seq_num')}')
+                        logger.warning(f'Packet was lost {pckt.packet.get('seq_num') + 1}')
                         max_retry -= 1
 
                   try:
