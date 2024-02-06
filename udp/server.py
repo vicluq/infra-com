@@ -4,7 +4,7 @@ import os
 import math
 import time
 
-
+# TODO: Refactor code (rushed)
 class UDPServer:
     def __init__(self, sckt_family, sckt_type, sckt_binding, MAX_BUFF) -> None:
         self.sckt = skt.socket(sckt_family, sckt_type)
