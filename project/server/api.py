@@ -86,7 +86,9 @@ class RDTServer:
             command, data = self._decode_command(p)
             msg = ''
 
-            # TODO Add a queue to each command (like rmq) -> producer <> consumer
+            if command != 'connect' and not self.connections.get(key):
+                  msg = 'Falha na autenticação.'.encode()
+            
             if command == 'connect':
                   name = ' '.join(data[1:])
                   if self._is_username(name):
@@ -99,6 +101,7 @@ class RDTServer:
             
             elif command == 'bye':
                   try:
+                        await self._broadcast(f'{self.connections[key]} saiu do sistema.', [key])
                         self.connections.pop(key)
                         logger.info(self.connections)
                   except KeyError:
