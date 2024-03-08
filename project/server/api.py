@@ -48,7 +48,6 @@ class RDTServer:
                   logger.error(err)
 
 
-
       async def process_buffer(self):
             logger.info('Processing messages...')
             while True:
@@ -88,53 +87,53 @@ class RDTServer:
 
             if command != 'connect' and not self.connections.get(key):
                   msg = 'Falha na autenticação.'.encode()
-            
-            if command == 'connect':
-                  name = ' '.join(data[1:])
-                  if self._is_username(name):
-                        msg = 'Nome já em uso.'.encode()
-                  else:
-                        await self._broadcast(f'{name} está avaliando reservas!')
-                        self.connections[key] = name
-                        logger.info(self.connections)
-                        msg = 'Você está conectado.'.encode()
-            
-            elif command == 'bye':
-                  try:
-                        await self._broadcast(f'{self.connections[key]} saiu do sistema.', [key])
-                        self.connections.pop(key)
-                        logger.info(self.connections)
-                  except KeyError:
-                        pass
-                  return
-            
-            elif command == 'list':
-                  msg = show_reservations(self.reservations, self.connections).encode()
+            else:
+                  if command == 'connect':
+                        name = ' '.join(data[1:])
+                        if self._is_username(name):
+                              msg = 'Nome já em uso.'.encode()
+                        else:
+                              await self._broadcast(f'{name} está avaliando reservas!')
+                              self.connections[key] = name
+                              logger.info(self.connections)
+                              msg = 'Você está conectado.'.encode()
+                  
+                  elif command == 'bye':
+                        try:
+                              await self._broadcast(f'{self.connections[key]} saiu do sistema.', except_hosts=[key])
+                              self.connections.pop(key)
+                              logger.info(self.connections)
+                        except KeyError:
+                              pass
+                        return
+                  
+                  elif command == 'list':
+                        msg = show_reservations(self.connections).encode()
 
-            elif command == 'reservar':
-                  room, day, hour = data
-                  error = self._validate_reserva(room.lower(), day.lower(), hour.lower())
-                  if not error:
-                        self.reservations[f'{room.lower()}-{day.lower()}-{hour.lower()}'] = key
-                        await self._broadcast(f'{self.connections[key]} [{key}] reservou a sala {room} na {day} {hour}', [key])
-                        msg = f'Você [{key}] reservou a sala {room}.'.encode()
-                  else:
-                        msg = error.encode()
-            
-            elif command == 'cancelar':
-                  room, day, hour = data
-                  res_key = f'{room.lower()}-{day.lower()}-{hour.lower()}'
-                  if self._is_reserva(res_key) and self.reservations[res_key] == key:
-                        await self._broadcast(f'{self.connections[key]} [{key}] cancelou a sala {room} na {day} {hour}', [key])
-                        msg = f'Você [{key}] cancelou a sala {data[1]}.'.encode()
-                        self.reservations.pop(res_key)                  
-                  else:
-                        msg = f'Reserva nao existe ou nao pertence a voce.'.encode()
-            
-            elif command == 'check':
-                  room, day = data
-                  msg = ' '.join(self._check_available_hours(room, day))
-                  msg = f'{room} {day} -> {msg}'.encode()
+                  elif command == 'reservar':
+                        room, day, hour = data
+                        error = self._validate_reserva(room.lower(), day.lower(), hour.lower())
+                        if not error:
+                              self.reservations[f'{room.lower()}-{day.lower()}-{hour.lower()}'] = key
+                              await self._broadcast(f'{self.connections[key]} [{key}] reservou a sala {room} na {day} {hour}', [key])
+                              msg = f'Você [{key}] reservou a sala {room}.'.encode()
+                        else:
+                              msg = error.encode()
+                  
+                  elif command == 'cancelar':
+                        room, day, hour = data
+                        res_key = f'{room.lower()}-{day.lower()}-{hour.lower()}'
+                        if self._is_reserva(res_key) and self.reservations[res_key] == key:
+                              await self._broadcast(f'{self.connections[key]} [{key}] cancelou a sala {room} na {day} {hour}', [key])
+                              msg = f'Você [{key}] cancelou a sala {data[1]}.'.encode()
+                              self.reservations.pop(res_key)                  
+                        else:
+                              msg = f'Reserva nao existe ou nao pertence a voce.'.encode()
+                  
+                  elif command == 'check':
+                        room, day = data
+                        msg = ' '.join(self._check_available_hours(room.lower(), day.lower()))
+                        msg = f'{room} {day} -> {msg}'.encode()
 
             await self.dispacth(client, msg)
 

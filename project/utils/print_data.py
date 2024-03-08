@@ -1,13 +1,11 @@
 from tabulate import tabulate
 
 
-def show_reservations(reservations: dict, connections: dict) -> str:
+def show_reservations(connections: dict) -> str:
       data = []
-      headers = ['Name', 'Room', 'Datetime']
+      headers = ['Name']
 
-      for res in reservations.keys():
-            room, day, time = res.split('-')
-            key = reservations[res]
-            data.append([connections[key], room, f'{day} {time}'])
+      for name in connections.values():
+            data.append([name])
       
       return tabulate(data, headers)
