@@ -1,7 +1,7 @@
 from tabulate import tabulate
 
 
-def show_reservations(connections: dict) -> str:
+def show_connections(connections: dict) -> str:
       data = []
       headers = ['Name']
 

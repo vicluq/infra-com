@@ -52,7 +52,7 @@ class RDTClient():
                         else:
                               self.sckt.settimeout(2) # Start receving
                               buf.append(p.packet['data'])
-                              logger.info(f'Received pkt #{p.packet['seq_num']} out of {p.packet['total']}')
+                              logger.info(f'Received pkt #{p.packet["seq_num"]} out of {p.packet["total"]}')
                         
                         await self._ack(p, self.ACK_OK)
                   except skt.timeout:

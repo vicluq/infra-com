@@ -1,5 +1,5 @@
 from packet import Packet
-from utils.print_data import show_reservations
+from utils.print_data import show_connections
 import socket as skt
 import asyncio
 import logging
@@ -108,7 +108,7 @@ class RDTServer:
                         return
                   
                   elif command == 'list':
-                        msg = show_reservations(self.connections).encode()
+                        msg = show_connections(self.connections).encode()
 
                   elif command == 'reservar':
                         room, day, hour = data
@@ -125,7 +125,7 @@ class RDTServer:
                         res_key = f'{room.lower()}-{day.lower()}-{hour.lower()}'
                         if self._is_reserva(res_key) and self.reservations[res_key] == key:
                               await self._broadcast(f'{self.connections[key]} [{key}] cancelou a sala {room} na {day} {hour}', [key])
-                              msg = f'Você [{key}] cancelou a sala {data[1]}.'.encode()
+                              msg = f'Você [{key}] cancelou a sala {room}.'.encode()
                               self.reservations.pop(res_key)                  
                         else:
                               msg = f'Reserva nao existe ou nao pertence a voce.'.encode()
@@ -156,7 +156,7 @@ class RDTServer:
             while max_timeouts:
                   try:
                         await loop.sock_sendto(self.sckt, pckt.__dump__(), client_addr)
-                        logger.info(f'[CLI:{client_addr}] sent pckt #{pckt.packet['seq_num']} of {pckt.packet['total']}')
+                        logger.info(f'[CLI:{client_addr}] sent pckt #{pckt.packet["seq_num"]} of {pckt.packet["total"]}')
                         
                         logger.info(f'Waiting for ack from {client_addr}')
                         resp, client = await self.buffer.get() # Receive the ack 'ok' or 'not ok' pckt
