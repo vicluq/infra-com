@@ -4,7 +4,7 @@
 
 O projeto foi testado em Windows utilizando Python na versão `3.12`. A única biblioteca não nativa utilizada é `tabulate`. Recomendamos utilização de um ambiente e instalação desta biblioteca a partir do pip.
 
-*`pip install tabulate`.
+* `pip install tabulate`.
 
 ## Comandos
 
@@ -18,9 +18,9 @@ Ao enviar comandos, atente-se com o envio seguindo o que foi estabelecido nos re
 
 Para executar o servidor, rode em um terminal o comando:
 
-*`python run_server.py`.
+* `python run_server.py`.
 
 Para executar o cliente, escolha uma porta que não esteja sendo utilizada e rode em um terminal o comando:
 
-*`python run_client -p port_num`
+* `python run_client -p port_num`
 
